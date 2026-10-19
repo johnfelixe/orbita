@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ConfirmModal } from './ConfirmModal';
+import { usePwaInstall } from '../hooks/usePwaInstall';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [customUrl, setCustomUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { canInstall, isInstalled, isIos, install } = usePwaInstall();
 
   // Category deletion confirmation state
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
@@ -288,6 +290,43 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   </span>
                 </div>
               </button>
+            </div>
+          </div>
+
+          {/* INSTALACIÓN EN EL CELULAR */}
+          <div className="flex flex-col gap-2">
+            <span className="text-[12px] font-bold text-[#757686] dark:text-[#9aa0a6] uppercase tracking-wider">
+              Instalación
+            </span>
+            <div className="p-3.5 bg-white dark:bg-[#1f232b] rounded-2xl border border-[#e5e7eb] dark:border-[#2b303c] flex flex-col gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#dee0ff] dark:bg-[#5675fd]/20 text-[#173bd0] dark:text-[#5675fd] flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[22px]">install_mobile</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-bold text-[#191c1e] dark:text-[#f3f4f6]">
+                    {isInstalled ? 'Orbita está instalada' : 'Instalar en el celular'}
+                  </p>
+                  <p className="text-[11px] text-[#757686] dark:text-[#9aa0a6]">
+                    {isInstalled
+                      ? 'Ya se abre como una app independiente.'
+                      : isIos
+                        ? 'En Safari: Compartir → Añadir a pantalla de inicio.'
+                        : 'Agrégala a la pantalla de inicio y úsala como una app.'}
+                  </p>
+                </div>
+              </div>
+              {canInstall && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void install();
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-[#173bd0] dark:bg-[#5675fd] text-white text-[12px] font-semibold hover:bg-[#3a57e8] transition-colors cursor-pointer"
+                >
+                  Instalar Orbita
+                </button>
+              )}
             </div>
           </div>
 
