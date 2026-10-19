@@ -1,0 +1,6 @@
+{
+  "name": "WeekFlow - Planificador Semanal",
+  "description": "Aplicación de productividad y planificación semanal con vistas de semana, tareas diarias, calendario y estadísticas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
