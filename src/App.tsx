@@ -10,18 +10,29 @@ import { AddTaskModal } from './components/AddTaskModal';
 import { EditTaskModal } from './components/EditTaskModal';
 import { FilterModal } from './components/FilterModal';
 import { ProfileModal } from './components/ProfileModal';
-import { INITIAL_TASKS } from './data/initialTasks';
 import { Task, TabType, FilterOptions, Cadence, DEFAULT_CATEGORIES } from './types';
+import { formatDateISO, getIsoWeekNumber } from './utils/taskUtils';
+import {
+  downloadBackup,
+  loadAppData,
+  parseBackup,
+  requestPersistentStorage,
+  saveAppData,
+  type AppSnapshot,
+} from './utils/appStorage';
+
+const todayISO = formatDateISO(new Date());
+const todayWeek = getIsoWeekNumber(new Date());
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
-      const saved = localStorage.getItem('weekflow_tasks_v1');
+      const saved = localStorage.getItem('orbita_tasks_v1');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.warn('Error reading local tasks:', e);
     }
-    return INITIAL_TASKS;
+    return [];
   });
 
   const [categories, setCategories] = useState<string[]>(() => {
@@ -35,8 +46,8 @@ export default function App() {
   });
 
   const [currentTab, setCurrentTab] = useState<TabType>('semana');
-  const [selectedDate, setSelectedDate] = useState<string>('2024-10-16');
-  const [currentWeekNumber, setCurrentWeekNumber] = useState<number>(42);
+  const [selectedDate, setSelectedDate] = useState<string>(todayISO);
+  const [currentWeekNumber, setCurrentWeekNumber] = useState<number>(todayWeek);
 
   const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuA7tbdBzuvE1nW6U96o4Au7oWS5odLTtbf4_uq8MLBs4AESBRNAeW_Ey-h1jSjZzD1O07Wb8T4_K30d6F4sBvdU8RfvfQ';
 
@@ -69,7 +80,7 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
-  const [addTaskDefaultDate, setAddTaskDefaultDate] = useState<string>('2024-10-16');
+  const [addTaskDefaultDate, setAddTaskDefaultDate] = useState<string>(todayISO);
   const [addTaskDefaultCadence, setAddTaskDefaultCadence] = useState<Cadence>('DIARIA');
   
   // Edit Task modal state
@@ -77,6 +88,7 @@ export default function App() {
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [storageReady, setStorageReady] = useState(false);
 
   // Filter state
   const [filters, setFilters] = useState<FilterOptions>({
@@ -86,47 +98,41 @@ export default function App() {
     category: 'TODAS',
   });
 
-  // Save avatar
   useEffect(() => {
-    try {
-      localStorage.setItem('orbita_user_avatar', userAvatar);
-    } catch (e) {
-      console.warn('Error saving avatar:', e);
-    }
-  }, [userAvatar]);
+    let cancelled = false;
+    (async () => {
+      await requestPersistentStorage();
+      const saved = await loadAppData();
+      if (cancelled) return;
+      setTasks(saved.tasks);
+      setCategories(saved.categories);
+      if (saved.avatar) setUserAvatar(saved.avatar);
+      if (saved.theme === 'dark') setIsDarkMode(true);
+      if (saved.theme === 'light') setIsDarkMode(false);
+      setStorageReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  // Apply dark mode to document element
   useEffect(() => {
-    try {
-      if (isDarkMode) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('orbita_theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('orbita_theme', 'light');
-      }
-    } catch (e) {
-      console.warn('Error updating dark mode class:', e);
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
 
-  // Save tasks to localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem('weekflow_tasks_v1', JSON.stringify(tasks));
-    } catch (e) {
-      console.warn('Error saving tasks:', e);
-    }
-  }, [tasks]);
-
-  // Save categories to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('weekflow_categories_v1', JSON.stringify(categories));
-    } catch (e) {
-      console.warn('Error saving categories:', e);
-    }
-  }, [categories]);
+    if (!storageReady) return;
+    void saveAppData({
+      tasks,
+      categories,
+      avatar: userAvatar,
+      theme: isDarkMode ? 'dark' : 'light',
+    });
+  }, [storageReady, tasks, categories, userAvatar, isDarkMode]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -304,14 +310,38 @@ export default function App() {
     setCurrentWeekNumber(nextWeek);
   };
 
-  // Reset to sample initial data
+  const handleGoToToday = () => {
+    const now = new Date();
+    setSelectedDate(formatDateISO(now));
+    setCurrentWeekNumber(getIsoWeekNumber(now));
+  };
+
   const handleResetDemoData = () => {
-    setTasks(INITIAL_TASKS);
+    setTasks([]);
     setCategories(DEFAULT_CATEGORIES);
-    setSelectedDate('2024-10-16');
-    setCurrentWeekNumber(42);
-    setUserAvatar(DEFAULT_AVATAR);
-    showToast('Datos demo restaurados');
+    handleGoToToday();
+    showToast('Todas las tareas se eliminaron');
+  };
+
+  const currentSnapshot = (): AppSnapshot => ({
+    tasks,
+    categories,
+    avatar: userAvatar,
+    theme: isDarkMode ? 'dark' : 'light',
+  });
+
+  const handleExportBackup = () => {
+    downloadBackup(currentSnapshot());
+    showToast('Respaldo descargado');
+  };
+
+  const handleImportBackup = (raw: unknown) => {
+    const snapshot = parseBackup(raw);
+    setTasks(snapshot.tasks);
+    setCategories(snapshot.categories);
+    if (snapshot.avatar) setUserAvatar(snapshot.avatar);
+    if (snapshot.theme) setIsDarkMode(snapshot.theme === 'dark');
+    showToast('Respaldo restaurado');
   };
 
   // Open add task modal with preset date
@@ -372,6 +402,7 @@ export default function App() {
               onEditTask={handleOpenEditTask}
               currentWeekNumber={currentWeekNumber}
               onChangeWeek={handleChangeWeek}
+              onGoToToday={handleGoToToday}
             />
           )}
 
@@ -502,6 +533,8 @@ export default function App() {
         categories={categories}
         onAddCategory={handleAddCategory}
         onDeleteCategory={handleDeleteCategory}
+        onExportBackup={handleExportBackup}
+        onImportBackup={handleImportBackup}
       />
     </div>
   );

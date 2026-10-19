@@ -6,6 +6,12 @@ if (window.matchMedia('(display-mode: standalone)').matches) {
   document.documentElement.classList.add('standalone');
 }
 
+if (navigator.storage?.persist) {
+  navigator.storage.persisted().then((already) => {
+    if (!already) return navigator.storage.persist();
+  }).catch(() => undefined);
+}
+
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((error) => {

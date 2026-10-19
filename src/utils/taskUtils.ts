@@ -95,6 +95,32 @@ export function getRecurrenceLabel(task: Task): string {
 /**
  * Returns ISO week number (1-53) for a given Date or YYYY-MM-DD string
  */
+export function formatDateISO(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+export function getMondayOfDate(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+export function getWeekDateStrings(currentWeekNumber: number, reference: Date = new Date()): string[] {
+  const todayWeek = getIsoWeekNumber(reference);
+  const monday = getMondayOfDate(reference);
+  monday.setDate(monday.getDate() + (currentWeekNumber - todayWeek) * 7);
+  return Array.from({ length: 7 }, (_, idx) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + idx);
+    return formatDateISO(d);
+  });
+}
+
 export function getIsoWeekNumber(dateInput: Date | string): number {
   let d: Date;
   if (typeof dateInput === 'string') {

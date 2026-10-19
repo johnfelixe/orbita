@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Task, Cadence, Priority, Category } from '../types';
+import { getIsoWeekNumber } from '../utils/taskUtils';
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
@@ -60,7 +61,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     let recurringPreset: 'WEEKDAYS' | 'WEEKENDS' | 'EVERY_DAY' | 'CUSTOM' | undefined = undefined;
     let recurringDays: number[] | undefined = undefined;
     let weeklyMode: 'SPECIFIC_WEEK' | 'ALL_WEEKS' | undefined = undefined;
-    let weekNumber = 42;
+    let weekNumber = getIsoWeekNumber(selectedDate);
 
     if (lower.includes('lunes a viernes')) {
       cadence = 'DIARIA';
@@ -234,7 +235,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       dueTime: parsedTask.dueTime,
       location: parsedTask.location,
       completed: false,
-      weekNumber: parsedTask.weekNumber || 42,
+      weekNumber: parsedTask.weekNumber || getIsoWeekNumber(selectedDate),
     });
     onClose();
   };

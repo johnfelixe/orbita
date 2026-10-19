@@ -7,6 +7,8 @@ import {
   isTaskInWeek,
   getRecurrenceLabel,
   getIsoWeekNumber,
+  getWeekDateStrings,
+  formatDateISO,
   MONTH_NAMES_ES,
 } from '../utils/taskUtils';
 
@@ -25,7 +27,7 @@ export const StatsView: React.FC<StatsViewProps> = ({
   tasks,
   currentWeekNumber,
   categories,
-  selectedDate = '2024-10-16',
+  selectedDate = formatDateISO(new Date()),
   onOpenAddTask,
   onUpdateProgress,
 }) => {
@@ -73,19 +75,10 @@ export const StatsView: React.FC<StatsViewProps> = ({
   // ==========================================
   const dayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   
-  // Calculate dates of the selected week (base week 42 starts Oct 14, 2024)
-  const weekDates = useMemo(() => {
-    const baseDate = new Date(2024, 9, 14); // Oct 14, 2024
-    const weekOffsetDays = (currentWeekNumber - 42) * 7;
-    return Array.from({ length: 7 }).map((_, idx) => {
-      const d = new Date(baseDate);
-      d.setDate(d.getDate() + weekOffsetDays + idx);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    });
-  }, [currentWeekNumber]);
+  const weekDates = useMemo(
+    () => getWeekDateStrings(currentWeekNumber),
+    [currentWeekNumber]
+  );
 
   const dayStats = useMemo(() => {
     return weekDates.map((dateStr, idx) => {

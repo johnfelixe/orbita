@@ -13,6 +13,8 @@ interface ProfileModalProps {
   categories: string[];
   onAddCategory: (category: string) => void;
   onDeleteCategory: (category: string) => void;
+  onExportBackup: () => void;
+  onImportBackup: (raw: unknown) => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -26,12 +28,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   categories,
   onAddCategory,
   onDeleteCategory,
+  onExportBackup,
+  onImportBackup,
 }) => {
   const [newCatInput, setNewCatInput] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [customUrl, setCustomUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
   const { canInstall, isInstalled, isIos, install } = usePwaInstall();
 
   // Category deletion confirmation state
@@ -39,6 +44,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   // Demo reset confirmation state
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
+  const [pendingBackup, setPendingBackup] = useState<unknown>(null);
 
   if (!isOpen) return null;
 
@@ -293,6 +299,56 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
           </div>
 
+          {/* COPIA DE SEGURIDAD */}
+          <div className="flex flex-col gap-2">
+            <span className="text-[12px] font-bold text-[#757686] dark:text-[#9aa0a6] uppercase tracking-wider">
+              Copia de seguridad
+            </span>
+            <div className="p-3.5 bg-white dark:bg-[#1f232b] rounded-2xl border border-[#e5e7eb] dark:border-[#2b303c] flex flex-col gap-3 shadow-xs">
+              <p className="text-[11px] text-[#757686] dark:text-[#9aa0a6] leading-relaxed">
+                Guarda un archivo con tus tareas. Si Chrome borra datos del sitio, puedes restaurarlas desde ese archivo.
+              </p>
+              <input
+                type="file"
+                ref={backupInputRef}
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    try {
+                      const parsed = JSON.parse(String(reader.result));
+                      setPendingBackup(parsed);
+                    } catch {
+                      setErrorMessage('El archivo de respaldo no es un JSON válido.');
+                      setTimeout(() => setErrorMessage(null), 3500);
+                    }
+                  };
+                  reader.readAsText(file);
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onExportBackup}
+                  className="flex-1 py-2 px-3 rounded-xl bg-[#173bd0] dark:bg-[#5675fd] text-white text-[12px] font-semibold hover:bg-[#3a57e8] transition-colors cursor-pointer"
+                >
+                  Exportar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => backupInputRef.current?.click()}
+                  className="flex-1 py-2 px-3 rounded-xl bg-white dark:bg-[#252831] border border-[#e5e7eb] dark:border-[#353945] text-[#191c1e] dark:text-[#f3f4f6] text-[12px] font-semibold hover:bg-[#eceef0] dark:hover:bg-[#2c303b] transition-colors cursor-pointer"
+                >
+                  Restaurar
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* INSTALACIÓN EN EL CELULAR */}
           <div className="flex flex-col gap-2">
             <span className="text-[12px] font-bold text-[#757686] dark:text-[#9aa0a6] uppercase tracking-wider">
@@ -403,7 +459,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               className="w-full py-2.5 px-3 rounded-xl border border-[#ba1a1a]/30 dark:border-[#ba1a1a]/40 bg-[#ffdad6]/20 dark:bg-[#ffdad6]/10 text-[#ba1a1a] dark:text-[#fca5a5] text-[13px] font-semibold hover:bg-[#ffdad6]/40 dark:hover:bg-[#ba1a1a]/20 transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px]">restart_alt</span>
-              Restaurar datos de muestra
+              Borrar todas las tareas
             </button>
           </div>
 
@@ -431,14 +487,36 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         }}
       />
 
+      <ConfirmModal
+        isOpen={Boolean(pendingBackup)}
+        title="¿Restaurar respaldo?"
+        message="Se reemplazarán las tareas actuales de este dispositivo por las del archivo. Esta acción no se puede deshacer."
+        confirmText="Sí, restaurar"
+        cancelText="Cancelar"
+        isDestructive={false}
+        onCancel={() => setPendingBackup(null)}
+        onConfirm={() => {
+          if (!pendingBackup) return;
+          try {
+            onImportBackup(pendingBackup);
+            setPendingBackup(null);
+            onClose();
+          } catch (error) {
+            setPendingBackup(null);
+            setErrorMessage(error instanceof Error ? error.message : 'No se pudo restaurar el respaldo.');
+            setTimeout(() => setErrorMessage(null), 3500);
+          }
+        }}
+      />
+
       {/* Confirmation modal for Demo Reset */}
       <ConfirmModal
         isOpen={isConfirmResetOpen}
-        title="¿Restaurar datos de muestra?"
-        message="¿Deseas restaurar todas las tareas originales del demo y restablecer la foto predeterminada? Tus cambios actuales se reiniciarán."
-        confirmText="Restaurar todo"
+        title="¿Borrar todas las tareas?"
+        message="Se eliminarán todas las tareas de este dispositivo. Las categorías se restablecerán. Esta acción no se puede deshacer."
+        confirmText="Sí, borrar todo"
         cancelText="Cancelar"
-        isDestructive={false}
+        isDestructive={true}
         onCancel={() => setIsConfirmResetOpen(false)}
         onConfirm={() => {
           setIsConfirmResetOpen(false);

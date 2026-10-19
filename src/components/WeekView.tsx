@@ -6,6 +6,8 @@ import {
   isTaskOmittedOnDate,
   isTaskInWeek,
   getRecurrenceLabel,
+  formatDateISO,
+  getWeekDateStrings,
 } from '../utils/taskUtils';
 
 interface WeekViewProps {
@@ -19,6 +21,7 @@ interface WeekViewProps {
   onEditTask?: (task: Task) => void;
   currentWeekNumber: number;
   onChangeWeek: (delta: number) => void;
+  onGoToToday: () => void;
 }
 
 
@@ -42,32 +45,27 @@ export const WeekView: React.FC<WeekViewProps> = ({
   onEditTask,
   currentWeekNumber,
   onChangeWeek,
+  onGoToToday,
 }) => {
-  // Days of the week 42 (Oct 14 - 20, 2024 as canonical reference)
-  // Base date for currentWeekNumber (assuming base week 42 starts Oct 14, 2024)
-  const baseDate = new Date(2024, 9, 14); // Oct 14, 2024
-  const weekOffsetDays = (currentWeekNumber - 42) * 7;
+  const todayStr = formatDateISO(new Date());
+  const weekDates = getWeekDateStrings(currentWeekNumber);
+  const dayMeta = [
+    { dayName: 'Lunes', shortName: 'LUN' },
+    { dayName: 'Martes', shortName: 'MAR' },
+    { dayName: 'Miércoles', shortName: 'MIÉ' },
+    { dayName: 'Jueves', shortName: 'JUE' },
+    { dayName: 'Viernes', shortName: 'VIE' },
+    { dayName: 'Sábado', shortName: 'SÁB' },
+    { dayName: 'Domingo', shortName: 'DOM' },
+  ];
 
-  const days: DayItem[] = [
-    { dayName: 'Lunes', shortName: 'LUN', dayNum: 14, dateStr: '2024-10-14' },
-    { dayName: 'Martes', shortName: 'MAR', dayNum: 15, dateStr: '2024-10-15' },
-    { dayName: 'Miércoles', shortName: 'MIÉ', dayNum: 16, dateStr: '2024-10-16', isToday: true },
-    { dayName: 'Jueves', shortName: 'JUE', dayNum: 17, dateStr: '2024-10-17' },
-    { dayName: 'Viernes', shortName: 'VIE', dayNum: 18, dateStr: '2024-10-18' },
-    { dayName: 'Sábado', shortName: 'SÁB', dayNum: 19, dateStr: '2024-10-19' },
-    { dayName: 'Domingo', shortName: 'DOM', dayNum: 20, dateStr: '2024-10-20', isSunday: true },
-  ].map((d, idx) => {
-    const computedDate = new Date(baseDate);
-    computedDate.setDate(computedDate.getDate() + weekOffsetDays + idx);
-    const yyyy = computedDate.getFullYear();
-    const mm = String(computedDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(computedDate.getDate()).padStart(2, '0');
-    return {
-      ...d,
-      dayNum: computedDate.getDate(),
-      dateStr: `${yyyy}-${mm}-${dd}`,
-    };
-  });
+  const days: DayItem[] = weekDates.map((dateStr, idx) => ({
+    ...dayMeta[idx],
+    dayNum: Number(dateStr.split('-')[2]),
+    dateStr,
+    isToday: dateStr === todayStr,
+    isSunday: idx === 6,
+  }));
 
   const selectedDayItem = days.find((d) => d.dateStr === selectedDate) || days[2];
 
@@ -94,7 +92,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
               Mi semana
             </h1>
             <button
-              onClick={() => onSelectDate(days[2].dateStr)} // Jumps to today (Wednesday 16)
+              onClick={onGoToToday}
               id="today-btn"
               className="px-3 py-1.5 rounded-full bg-[#dee0ff] dark:bg-[#5675fd]/25 text-[#00105b] dark:text-[#dee0ff] hover:bg-[#bac3ff] dark:hover:bg-[#5675fd]/40 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer font-semibold"
             >

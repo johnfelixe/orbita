@@ -30,8 +30,8 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2">
           <img
             alt="Orbita Logo"
-            className="h-8 w-auto object-contain"
-            src="https://lh3.googleusercontent.com/aida/AEtjO1XEOvlbzk5vuI81yJNW-KEQzWH2tDN2DYPVeGcENTQwH2NDoRsBERVy1zos0AF4X-4ad8Iz2Hey65Dx8qE-TXRyCJiBBizRT4K6360USV7YyRQPOsk1UBUXFFFHkbR1arK_J6gKQvo43W0apFjdHVfLhtVTJ1hVtOcQ5cbbxdayR16v3PistddEERgwBID2nBBsfyy2h7I_WZ_bXidWbeJHapSkbAfG5zdaa6vYeUHXwW7g7jKmLYtcXmE"
+            className="h-9 w-9 rounded-xl object-cover shadow-sm"
+            src="/logo.webp"
           />
           <div className="flex flex-col">
             <span className="text-[18px] font-semibold text-[#173bd0] dark:text-[#5675fd] tracking-tight leading-none">
