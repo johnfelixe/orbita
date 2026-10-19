@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Task, Cadence, Category, Priority, TaskStatusType } from '../types';
-import { getRecurrenceLabel, getIsoDay } from '../utils/taskUtils';
+import { getRecurrenceLabel, getIsoDay, isTaskCompletedOnDate, isTaskOmittedOnDate, isRecurringDaily, formatDateISO } from '../utils/taskUtils';
 import { ConfirmModal } from './ConfirmModal';
 
 interface TasksViewProps {
   tasks: Task[];
   onToggleTask: () => void;
-  onToggleTaskById: (taskId: string) => void;
-  onToggleOmitTaskById?: (taskId: string) => void;
+  onToggleTaskById: (taskId: string, dateStr?: string) => void;
+  onToggleOmitTaskById?: (taskId: string, dateStr?: string) => void;
   onDeleteTask: (taskId: string) => void;
   onOpenAddTask: () => void;
   onEditTask?: (task: Task) => void;
@@ -70,7 +70,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   onOpenAddTask,
   onEditTask,
   categories = ['Trabajo', 'Estudio', 'Salud', 'Personal'],
-  currentDate = '2024-10-16',
+  currentDate = formatDateISO(new Date()),
   currentWeekNumber = 42,
 }) => {
   const [filterCadence, setFilterCadence] = useState<'TODAS' | Cadence>('TODAS');
@@ -87,7 +87,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
   // Helper to determine if a task is overdue (atrasada)
   const isTaskOverdue = (t: Task): boolean => {
-    if (t.completed || t.omitted) return false;
+    if (isTaskCompletedOnDate(t, currentDate) || isTaskOmittedOnDate(t, currentDate)) return false;
+    if (isRecurringDaily(t) || t.weeklyMode === 'ALL_WEEKS') return false;
     if (t.isOverdue) return true;
     if (t.cadence === 'DIARIA' && t.dueDate && t.dueDate < currentDate) return true;
     if (t.cadence === 'SEMANAL' && t.weekNumber && t.weekNumber < currentWeekNumber) return true;
@@ -113,8 +114,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
       if (filterCategory !== 'TODAS' && t.category !== filterCategory) return false;
 
       // Status
-      const isDone = t.completed;
-      const isOmitted = Boolean(t.omitted);
+      const isDone = isTaskCompletedOnDate(t, currentDate);
+      const isOmitted = isTaskOmittedOnDate(t, currentDate);
       const isOverdue = isTaskOverdue(t);
 
       if (filterStatus === 'PENDIENTES' && (isDone || isOmitted || isOverdue)) return false;
@@ -136,7 +137,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   // 1. Tareas Atrasadas (Vencidas)
   const overdueTasks = useMemo(() => {
     return filteredTasks
-      .filter((t) => !t.completed && !t.omitted && isTaskOverdue(t))
+      .filter((t) => !isTaskCompletedOnDate(t, currentDate) && !isTaskOmittedOnDate(t, currentDate) && isTaskOverdue(t))
       .sort((a, b) => {
         const offsetA = Math.abs(getTaskDateOffset(a, currentDate, currentWeekNumber));
         const offsetB = Math.abs(getTaskDateOffset(b, currentDate, currentWeekNumber));
@@ -148,7 +149,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   // 2. Tareas Pendientes por hacer (ni atrasadas, ni hechas, ni omitidas)
   const pendingTasks = useMemo(() => {
     return filteredTasks
-      .filter((t) => !t.completed && !t.omitted && !isTaskOverdue(t))
+      .filter((t) => !isTaskCompletedOnDate(t, currentDate) && !isTaskOmittedOnDate(t, currentDate) && !isTaskOverdue(t))
       .sort((a, b) => {
         const offsetA = getTaskDateOffset(a, currentDate, currentWeekNumber);
         const offsetB = getTaskDateOffset(b, currentDate, currentWeekNumber);
@@ -165,7 +166,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   // 3. Tareas Hechas (Completadas)
   const completedTasks = useMemo(() => {
     return filteredTasks
-      .filter((t) => t.completed)
+      .filter((t) => isTaskCompletedOnDate(t, currentDate))
       .sort((a, b) => {
         const offsetA = Math.abs(getTaskDateOffset(a, currentDate, currentWeekNumber));
         const offsetB = Math.abs(getTaskDateOffset(b, currentDate, currentWeekNumber));
@@ -177,7 +178,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   // 4. Tareas Omitidas
   const omittedTasks = useMemo(() => {
     return filteredTasks
-      .filter((t) => t.omitted)
+      .filter((t) => isTaskOmittedOnDate(t, currentDate))
       .sort((a, b) => {
         const offsetA = Math.abs(getTaskDateOffset(a, currentDate, currentWeekNumber));
         const offsetB = Math.abs(getTaskDateOffset(b, currentDate, currentWeekNumber));
@@ -188,8 +189,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
   // Render a task card
   const renderTaskCard = (task: Task) => {
-    const isCompleted = task.completed;
-    const isOmitted = Boolean(task.omitted);
+    const isCompleted = isTaskCompletedOnDate(task, currentDate);
+    const isOmitted = isTaskOmittedOnDate(task, currentDate);
     const isOverdue = isTaskOverdue(task);
 
     return (
@@ -207,7 +208,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       >
         {/* Checkbox (Marcar como Hecha) */}
         <button
-          onClick={() => onToggleTaskById(task.id)}
+          onClick={() => onToggleTaskById(task.id, currentDate)}
           className={`mt-0.5 w-5 h-5 rounded-[6px] flex items-center justify-center shrink-0 cursor-pointer transition-colors ${
             isCompleted
               ? 'bg-[#1E6B37] dark:bg-[#22c55e] text-white shadow-xs'
@@ -311,7 +312,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               {onToggleOmitTaskById && (
                 <button
                   type="button"
-                  onClick={() => onToggleOmitTaskById(task.id)}
+                  onClick={() => onToggleOmitTaskById(task.id, currentDate)}
                   className={`p-1 rounded-lg text-[11px] font-semibold flex items-center gap-0.5 transition-all cursor-pointer ${
                     isOmitted
                       ? 'bg-[#dee0ff] dark:bg-[#5675fd]/25 text-[#00105b] dark:text-[#dee0ff] hover:bg-[#bac3ff]'

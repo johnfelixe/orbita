@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
-import { isTaskOnDate, isTaskCompletedOnDate, isTaskOmittedOnDate } from '../utils/taskUtils';
+import { isTaskOnDate, isTaskCompletedOnDate, isTaskOmittedOnDate, formatDateISO } from '../utils/taskUtils';
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -15,8 +15,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onSelectDate,
   onOpenAddTask,
 }) => {
-  const [currentMonth, setCurrentMonth] = useState(9); // October (0-indexed: 9)
-  const [currentYear, setCurrentYear] = useState(2024);
+  const today = new Date();
+  const todayStr = formatDateISO(today);
+  const selectedParts = selectedDate.split('-').map(Number);
+  const [currentMonth, setCurrentMonth] = useState(
+    selectedParts[1] ? selectedParts[1] - 1 : today.getMonth()
+  );
+  const [currentYear, setCurrentYear] = useState(selectedParts[0] || today.getFullYear());
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -39,6 +44,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     } else {
       setCurrentMonth((m) => m + 1);
     }
+  };
+
+  const handleGoToToday = () => {
+    const now = new Date();
+    setCurrentMonth(now.getMonth());
+    setCurrentYear(now.getFullYear());
+    onSelectDate(formatDateISO(now));
   };
 
   // Generate calendar days for currentMonth
@@ -100,6 +112,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
           <div className="flex items-center gap-1">
             <button
+              onClick={handleGoToToday}
+              className="px-2 h-8 rounded-lg text-[11px] font-semibold text-[#173bd0] dark:text-[#5675fd] hover:bg-[#f2f4f6] dark:hover:bg-[#2c303b] transition-colors cursor-pointer"
+            >
+              Hoy
+            </button>
+            <button
               onClick={handlePrevMonth}
               className="w-8 h-8 flex items-center justify-center rounded-lg text-[#444655] dark:text-[#9aa0a6] hover:bg-[#f2f4f6] dark:hover:bg-[#2c303b] transition-colors cursor-pointer"
             >
@@ -136,6 +154,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             const dd = String(dayNum).padStart(2, '0');
             const dateStr = `${currentYear}-${mm}-${dd}`;
             const isSelected = selectedDate === dateStr;
+            const isToday = dateStr === todayStr;
             const tasksOnThisDay = tasks.filter((t) => isTaskOnDate(t, dateStr));
             const hasOverdue = tasksOnThisDay.some((t) => t.isOverdue && !isTaskCompletedOnDate(t, dateStr));
             const hasCompleted = tasksOnThisDay.some((t) => isTaskCompletedOnDate(t, dateStr));
@@ -147,6 +166,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 className={`h-9 flex flex-col items-center justify-center rounded-xl text-[13px] font-semibold transition-all relative cursor-pointer ${
                   isSelected
                     ? 'bg-[#173bd0] dark:bg-[#5675fd] text-white shadow-sm font-bold scale-105 z-10'
+                    : isToday
+                    ? 'bg-[#dee0ff] dark:bg-[#5675fd]/25 text-[#173bd0] dark:text-[#dee0ff] font-bold'
                     : 'hover:bg-[#f2f4f6] dark:hover:bg-[#2c303b] text-[#191c1e] dark:text-[#f3f4f6]'
                 }`}
               >

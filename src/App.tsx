@@ -11,7 +11,7 @@ import { EditTaskModal } from './components/EditTaskModal';
 import { FilterModal } from './components/FilterModal';
 import { ProfileModal } from './components/ProfileModal';
 import { Task, TabType, FilterOptions, Cadence, DEFAULT_CATEGORIES } from './types';
-import { formatDateISO, getIsoWeekNumber } from './utils/taskUtils';
+import { formatDateISO, getIsoWeekNumber, isTaskCompletedOnDate, isTaskOmittedOnDate } from './utils/taskUtils';
 import {
   downloadBackup,
   loadAppData,
@@ -146,15 +146,14 @@ export default function App() {
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
-          if (t.dailyMode === 'RECURRING' && dateStr) {
+          if (t.dailyMode === 'RECURRING') {
+            const dateKey = dateStr || selectedDate;
             const completedDates = t.completedDates || [];
-            const isDoneOnDate = completedDates.includes(dateStr);
+            const isDoneOnDate = completedDates.includes(dateKey);
             const nextDates = isDoneOnDate
-              ? completedDates.filter((d) => d !== dateStr)
-              : [...completedDates, dateStr];
-            
-            // If marking done, ensure date is not in omittedDates
-            const nextOmitted = (t.omittedDates || []).filter((d) => d !== dateStr);
+              ? completedDates.filter((d) => d !== dateKey)
+              : [...completedDates, dateKey];
+            const nextOmitted = (t.omittedDates || []).filter((d) => d !== dateKey);
 
             if (!isDoneOnDate) {
               showToast(`¡Completada: "${t.title}"!`);
@@ -162,9 +161,9 @@ export default function App() {
             return {
               ...t,
               completedDates: nextDates,
-              completed: nextDates.length > 0,
+              completed: false,
               omittedDates: nextOmitted,
-              omitted: nextOmitted.length > 0,
+              omitted: false,
             };
           }
 
@@ -190,15 +189,14 @@ export default function App() {
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
-          if (t.dailyMode === 'RECURRING' && dateStr) {
+          if (t.dailyMode === 'RECURRING') {
+            const dateKey = dateStr || selectedDate;
             const omittedDates = t.omittedDates || [];
-            const isOmittedOnDate = omittedDates.includes(dateStr);
+            const isOmittedOnDate = omittedDates.includes(dateKey);
             const nextOmitted = isOmittedOnDate
-              ? omittedDates.filter((d) => d !== dateStr)
-              : [...omittedDates, dateStr];
-            
-            // If omitting on date, remove date from completedDates
-            const nextCompleted = (t.completedDates || []).filter((d) => d !== dateStr);
+              ? omittedDates.filter((d) => d !== dateKey)
+              : [...omittedDates, dateKey];
+            const nextCompleted = (t.completedDates || []).filter((d) => d !== dateKey);
 
             if (!isOmittedOnDate) {
               showToast(`Tarea omitida: "${t.title}"`);
@@ -209,9 +207,9 @@ export default function App() {
             return {
               ...t,
               omittedDates: nextOmitted,
-              omitted: nextOmitted.length > 0,
+              omitted: false,
               completedDates: nextCompleted,
-              completed: nextCompleted.length > 0,
+              completed: false,
             };
           }
 
@@ -363,8 +361,8 @@ export default function App() {
     if (filters.priority !== 'TODAS' && t.priority !== filters.priority) return false;
     if (filters.category !== 'TODAS' && t.category !== filters.category) return false;
     
-    const isCompleted = t.completed;
-    const isOmitted = Boolean(t.omitted);
+    const isCompleted = isTaskCompletedOnDate(t, selectedDate);
+    const isOmitted = isTaskOmittedOnDate(t, selectedDate);
     const isOverdue = Boolean(t.isOverdue) && !isCompleted && !isOmitted;
 
     if (filters.status === 'PENDIENTES' && (isCompleted || isOmitted || isOverdue)) return false;

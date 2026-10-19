@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Cadence, Priority, Category, DailyMode, RecurringPreset, WeeklyMode } from '../types';
+import { formatDateISO } from '../utils/taskUtils';
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -21,7 +22,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   currentWeekNumber = 42,
   defaultDate,
   defaultCadence,
-  initialDate = '2024-10-16',
+  initialDate = formatDateISO(new Date()),
   initialCadence = 'DIARIA',
 }) => {
   const activeInitialDate = defaultDate || initialDate;
@@ -249,17 +250,21 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   <div className="flex items-center gap-1 mt-0.5">
                     <button
                       type="button"
-                      onClick={() => setDueDate('2024-10-16')}
+                      onClick={() => setDueDate(formatDateISO(new Date()))}
                       className="px-2 py-0.5 rounded bg-white dark:bg-[#1f232b] text-[10px] font-medium text-[#173bd0] dark:text-[#5675fd] border border-[#dee0ff] dark:border-[#5675fd]/40 hover:bg-[#f2f4f6] dark:hover:bg-[#252831] cursor-pointer"
                     >
-                      Hoy (Mié 16)
+                      Hoy
                     </button>
                     <button
                       type="button"
-                      onClick={() => setDueDate('2024-10-17')}
+                      onClick={() => {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        setDueDate(formatDateISO(tomorrow));
+                      }}
                       className="px-2 py-0.5 rounded bg-white dark:bg-[#1f232b] text-[10px] font-medium text-[#444655] dark:text-[#9aa0a6] border border-[#e5e7eb] dark:border-[#2b303c] hover:bg-[#f2f4f6] dark:hover:bg-[#252831] cursor-pointer"
                     >
-                      Mañana (Jue 17)
+                      Mañana
                     </button>
                   </div>
                 </div>

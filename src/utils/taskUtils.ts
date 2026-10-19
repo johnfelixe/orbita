@@ -55,6 +55,10 @@ export function isTaskOmittedOnDate(task: Task, dateStr: string): boolean {
   return Boolean(task.omitted);
 }
 
+export function isRecurringDaily(task: Task): boolean {
+  return task.cadence === 'DIARIA' && task.dailyMode === 'RECURRING';
+}
+
 
 /**
  * Checks if a weekly task applies to a specific week number
