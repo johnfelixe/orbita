@@ -472,6 +472,8 @@ export default function App() {
         onClose={() => setIsVoiceAssistantOpen(false)}
         onAddTask={handleAddTask}
         selectedDate={selectedDate}
+        tasks={tasks}
+        currentWeekNumber={currentWeekNumber}
       />
 
       {/* Add Task Modal */}
