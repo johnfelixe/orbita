@@ -98,7 +98,7 @@ export function parseSpokenDate(text: string, referenceDate: string): {
 } {
   const lower = text.toLowerCase();
 
-  if (/\besta semana\b/.test(lower)) {
+  if (/\b(esta semana|la semana|en la semana|de la semana|de esta semana)\b/.test(lower) || (/\bsemana\b/.test(lower) && !/\b(todas las semanas|toda la semana)\b/.test(lower))) {
     return { date: referenceDate, week: true, label: 'esta semana', found: true };
   }
   if (/\bhoy\b/.test(lower)) {
@@ -138,6 +138,21 @@ export function parseSpokenDate(text: string, referenceDate: string): {
   return { date: referenceDate, week: false, label: 'hoy', found: false };
 }
 
+function normalizeVoiceText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[¿?¡!.,;:]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isAddCommand(text: string): boolean {
+  const n = normalizeVoiceText(text);
+  return /(agreg|anad|añad|crea |crear |creame|anota|apunta|ponme |pon una|ponme|programa |nueva tarea)/.test(n);
+}
+
 function parseSpokenTime(text: string): string | undefined {
   const lower = text.toLowerCase();
   const isPm =
@@ -175,16 +190,23 @@ function parseSpokenTime(text: string): string | undefined {
 }
 
 function isQueryIntent(text: string): boolean {
-  const lower = text.toLowerCase();
-  const asks =
-    /(qué|que|cuál|cual|cuáles|cuales|dime|dígame|digame|necesito que me digas|necesito que me diga|tienes pendientes|tengo pendientes|hay pendientes|lista(me)?|cuántas|cuantas)/.test(
-      lower
+  if (isAddCommand(text)) return false;
+  const n = normalizeVoiceText(text);
+
+  const mentionsTasks = /(tarea|pendiente|agenda|compromiso|pendientes)/.test(n);
+  const mentionsTime =
+    /(hoy|manana|pasado manana|esta semana|la semana|semana|lunes|martes|miercoles|jueves|viernes|sabado|domingo|el \d{1,2}|dia de hoy|para hoy|de hoy)/.test(
+      n
     );
-  const aboutTasks = /(tarea|pendiente|hoy|mañana|manana|semana|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|\bel\s+\d{1,2}\b)/.test(
-    lower
-  );
-  const isAdd = /(agrég|agreg|añad|anad|crea(me|r)? |anota|apúnta|apunta|ponme |programa)/.test(lower);
-  return asks && aboutTasks && !isAdd;
+  const asks =
+    /(que |cual|dime|diga|digas|necesito|tienes|tengo|hay |lista|cuantas|cuantos|muestra|mostrame|revisa|consulta|sabes|puedes decir|me dices|me puedes|informame|resumen|dime las|las de)/.test(
+      n
+    );
+
+  if (mentionsTasks && mentionsTime) return true;
+  if (asks && (mentionsTasks || mentionsTime)) return true;
+  if (/\bpendiente/.test(n)) return true;
+  return false;
 }
 
 function cleanTaskTitle(text: string): string {
@@ -392,4 +414,5 @@ export function speakSpanish(text: string) {
 export function stopSpeaking() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
+  window.setTimeout(() => window.speechSynthesis.cancel(), 0);
 }

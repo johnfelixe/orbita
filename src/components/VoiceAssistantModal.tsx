@@ -32,14 +32,33 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const [queryTasks, setQueryTasks] = useState<Task[]>([]);
   const [spokenAnswer, setSpokenAnswer] = useState('');
   const recognitionRef = useRef<any>(null);
+  const lastSpokenRef = useRef('');
 
   const examplePrompts = [
     'Agrégame una tarea para mañana de comprar pan',
-    '¿Qué tareas tengo pendientes hoy?',
-    'Reunión con el equipo el viernes a las 11 de la mañana',
+    'Tareas pendientes esta semana',
+    'Pendientes de hoy',
   ];
 
+  const resetVoiceSession = () => {
+    stopSpeaking();
+    recognitionRef.current?.stop?.();
+    setIsListening(false);
+    setTranscript('');
+    setIntent(null);
+    setQueryTasks([]);
+    setSpokenAnswer('');
+    lastSpokenRef.current = '';
+  };
+
   useEffect(() => {
+    if (!isOpen) {
+      resetVoiceSession();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     if (!transcript.trim()) {
       setIntent(null);
       setQueryTasks([]);
@@ -59,21 +78,14 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       setSpokenAnswer('');
       stopSpeaking();
     }
-  }, [transcript, selectedDate, tasks, currentWeekNumber]);
+  }, [isOpen, transcript, selectedDate, tasks, currentWeekNumber]);
 
   useEffect(() => {
-    if (!isOpen) {
-      stopSpeaking();
-      recognitionRef.current?.stop?.();
-      setIsListening(false);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isListening && spokenAnswer && intent?.type === 'query') {
-      speakSpanish(spokenAnswer);
-    }
-  }, [isListening, spokenAnswer, intent]);
+    if (!isOpen || isListening || !spokenAnswer || intent?.type !== 'query') return;
+    if (lastSpokenRef.current === spokenAnswer) return;
+    lastSpokenRef.current = spokenAnswer;
+    speakSpanish(spokenAnswer);
+  }, [isOpen, isListening, spokenAnswer, intent]);
 
   const startListening = () => {
     setTranscript('');
@@ -144,8 +156,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   };
 
   const handleClose = () => {
-    stopSpeaking();
-    stopListening();
+    resetVoiceSession();
     onClose();
   };
 
